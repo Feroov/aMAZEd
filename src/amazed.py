@@ -6,9 +6,8 @@ import os
 # Initialize Pygame
 pygame.init()
 
-# Get screen dimensions
-infoObject = pygame.display.Info()
-WIDTH, HEIGHT = infoObject.current_w, infoObject.current_h
+# Fixed screen dimensions
+WIDTH, HEIGHT = 1000, 800
 
 CELL_SIZE = 32  # Changed to match the texture size
 PLAYER_SIZE = 30
@@ -29,8 +28,8 @@ FIRE_COLORS = [
 BLUE = (255, 50, 0)
 
 # Set up the display
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
-pygame.display.set_caption("aMAZEd")
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Amazed")
 clock = pygame.time.Clock()
 
 # Load wall texture
@@ -235,7 +234,7 @@ def main_menu(particle_system):
     # Calculate total width required for buttons
     total_width = 3 * button_width + 2 * button_margin
     start_x = (WIDTH - total_width) // 2  # Start drawing buttons from this x-coordinate
-    start_y = HEIGHT // 2 + 350  # Adjusted to lower the buttons on the screen
+    start_y = HEIGHT // 2 + 200  # Adjusted to lower the buttons on the screen
 
     buttons = [
         pygame.Rect(start_x, start_y, button_width, button_height),
@@ -292,7 +291,7 @@ def main_menu(particle_system):
                                 select_sound.play()  # Play select sound on button click
                             except pygame.error as e:
                                 print(f"Error playing select sound: {e}")
-                            return "options"
+                            options_menu()  # Navigate to options menu
                         elif i == 2:
                             pygame.quit()
                             return "quit"
@@ -304,21 +303,24 @@ def main_menu(particle_system):
 
 
 def options_menu():
-    # Placeholder function for options menu handling
-    return "controls"
-
-def control_selection():
     global controls
     running = True
+    selected_option = 0  # Track the currently selected control option (0 for 'up', 1 for 'down', etc.)
+    waiting_for_key = False  # Flag to indicate if waiting for key press
 
     while running:
         screen.fill((255, 255, 255))
-        draw_text("Controls", 60, WIDTH // 2, HEIGHT // 4)
-        draw_text(f"Move Up: {pygame.key.name(controls['up'])}", 36, WIDTH // 2, HEIGHT // 2 - 50)
-        draw_text(f"Move Down: {pygame.key.name(controls['down'])}", 36, WIDTH // 2, HEIGHT // 2)
-        draw_text(f"Move Left: {pygame.key.name(controls['left'])}", 36, WIDTH // 2, HEIGHT // 2 + 50)
-        draw_text(f"Move Right: {pygame.key.name(controls['right'])}", 36, WIDTH // 2, HEIGHT // 2 + 100)
-        draw_text("Press a key to change or ESC to go back", 24, WIDTH // 2, HEIGHT - 100)
+        draw_text("Options", 60, WIDTH // 2, HEIGHT // 4)
+        
+        # Draw control options
+        options = ['up', 'down', 'left', 'right']
+        for i, option in enumerate(options):
+            if waiting_for_key and i == selected_option:
+                draw_text(f"Move {option.capitalize()}: Press a key...", 36, WIDTH // 2, HEIGHT // 2 + i * 50)
+            else:
+                draw_text(f"Move {option.capitalize()}: {pygame.key.name(controls[option])}", 36, WIDTH // 2, HEIGHT // 2 + i * 50)
+        
+        draw_text("Press ESC to go back", 24, WIDTH // 2, HEIGHT - 100)
 
         pygame.display.flip()
 
@@ -326,16 +328,13 @@ def control_selection():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                else:
-                    new_key = event.key
-                    if new_key not in controls.values():
-                        for control in controls:
-                            if controls[control] == new_key:
-                                controls[control] = None  # Clear old binding
-                        for control in controls:
-                            if controls[control] is None:
-                                controls[control] = new_key
-                                break
+                elif waiting_for_key:
+                    controls[options[selected_option]] = event.key
+                    waiting_for_key = False
+                    selected_option = (selected_option + 1) % len(options)  # Move to the next option
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if not waiting_for_key:
+                    waiting_for_key = True
             elif event.type == pygame.QUIT:
                 pygame.quit()
                 return "quit"
@@ -381,12 +380,8 @@ def main():
                 pygame.display.flip()
                 clock.tick(FPS)
 
-        elif choice == "options":
-            option_selected = options_menu()  # Handle options menu
-            if option_selected == "controls":
-                control_selection()  # Handle control selection
-
         elif choice == "quit":
+            pygame.quit()
             return
 
 if __name__ == "__main__":
