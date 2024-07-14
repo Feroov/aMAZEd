@@ -41,6 +41,7 @@ floor_texture = pygame.image.load(os.path.join('assets', 'floor.png')).convert_a
 background_image = pygame.image.load(os.path.join('assets', 'mainmenu.png')).convert()
 
 hover_sound = pygame.mixer.Sound(os.path.join('assets', 'hover.wav'))
+select_sound = pygame.mixer.Sound(os.path.join('assets', 'select.wav'))  # Load select sound
 
 # Create a fog surface
 fog_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -204,7 +205,7 @@ class ParticleSystem:
 
 def draw_text(text, size, x, y):
     font = pygame.font.Font(None, size)
-    text_surface = font.render(text, True, (0, 0, 0))  # Text color changed to black
+    text_surface = font.render(text, True, (0, 0, 0)) 
     text_rect = text_surface.get_rect()
     text_rect.center = (x, y)
     screen.blit(text_surface, text_rect)
@@ -244,16 +245,29 @@ def main_menu(particle_system):
 
     button_texts = ["Play", "Options", "Quit"]
 
+    hovered_button = None  # Variable to track currently hovered button
+
     while True:
         screen.fill((255, 255, 255))
         screen.blit(background_image, (0, 0))  # Draw background image
 
-
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
         for i, button in enumerate(buttons):
-            # Draw button with color change on hover
-            pygame.draw.rect(screen, hover_color if button.collidepoint(mouse_x, mouse_y) else button_color, button)
+            if button.collidepoint(mouse_x, mouse_y):
+                if hovered_button != button:  # If mouse enters new button area
+                    hovered_button = button
+                    try:
+                        hover_sound.play()
+                    except pygame.error as e:
+                        print(f"Error playing hover sound: {e}")
+                pygame.draw.rect(screen, hover_color, button)
+            else:
+                pygame.draw.rect(screen, button_color, button)
+                if hovered_button == button:  # If mouse leaves previous button area
+                    hovered_button = None  # Reset hovered button
+                    hover_sound.stop()
+
             draw_text(button_texts[i], 40, button.centerx, button.centery)
 
             # Handle particle emission on button hover
@@ -264,12 +278,20 @@ def main_menu(particle_system):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return "quit"
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 for i, button in enumerate(buttons):
                     if button.collidepoint(mouse_x, mouse_y):
                         if i == 0:
+                            try:
+                                select_sound.play()  # Play select sound on button click
+                            except pygame.error as e:
+                                print(f"Error playing select sound: {e}")
                             return "play"
                         elif i == 1:
+                            try:
+                                select_sound.play()  # Play select sound on button click
+                            except pygame.error as e:
+                                print(f"Error playing select sound: {e}")
                             return "options"
                         elif i == 2:
                             pygame.quit()
@@ -279,6 +301,7 @@ def main_menu(particle_system):
 
         pygame.display.flip()
         clock.tick(FPS)
+
 
 def options_menu():
     # Placeholder function for options menu handling
