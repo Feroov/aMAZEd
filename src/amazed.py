@@ -56,6 +56,9 @@ hover2_sound = pygame.mixer.Sound(os.path.join('assets', 'hover2.wav'))
 select_sound = pygame.mixer.Sound(os.path.join('assets', 'select.wav'))
 select2_sound = pygame.mixer.Sound(os.path.join('assets', 'select2.wav'))
 pygame.mixer.music.load(os.path.join('assets', 'music1.wav'))
+back_sound = pygame.mixer.Sound(os.path.join('assets', 'back.wav'))
+all_sounds.append(back_sound)
+back_sound.set_volume(VOLUME)
 
 
 # Add all sounds to the global list
@@ -413,10 +416,11 @@ def options_menu():
     all_sounds.extend([hover_sound_options, select_sound, select2_sound])
     for sound in [hover_sound_options, select_sound, select2_sound]:
         sound.set_volume(VOLUME)
-        
+
     text_color = (255, 255, 255)
     highlight_color = (90, 216, 168)
     update_volume()
+
     while running:
         screen.blit(background_image, (0, 0))
 
@@ -426,12 +430,13 @@ def options_menu():
             else:
                 text = f"Move {option.capitalize()}: {pygame.key.name(controls[option])}"
 
+            y_position = HEIGHT // 2 - 100 + i * 50  # Adjust this value to move options higher or lower
             if selected_option == i:
                 if awaiting_keypress and option != 'volume':
                     text = f"Move {option.capitalize()}: Press a key..."
-                draw_text_options(text, 36, WIDTH // 2, HEIGHT // 2 + i * 50, text_color=highlight_color, outline_color=(0, 0, 0))
+                draw_text_options(text, 36, WIDTH // 2, y_position, text_color=highlight_color, outline_color=(0, 0, 0))
             else:
-                draw_text_options(text, 36, WIDTH // 2, HEIGHT // 2 + i * 50, text_color=text_color, outline_color=(0, 0, 0))
+                draw_text_options(text, 36, WIDTH // 2, y_position, text_color=text_color, outline_color=(0, 0, 0))
 
         draw_text_options("Press ESC to go back", 24, WIDTH // 2, HEIGHT - 100, text_color=text_color, outline_color=(0, 0, 0))
 
@@ -440,6 +445,7 @@ def options_menu():
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    back_sound.play()  # Play back sound
                     running = False
                 elif awaiting_keypress and selected_option != 4:
                     controls[options[selected_option]] = event.key
@@ -473,6 +479,8 @@ def options_menu():
     return "resume"
 
 
+
+
 def update_volume():
     global all_sounds
     pygame.mixer.music.set_volume(VOLUME)
@@ -480,30 +488,43 @@ def update_volume():
         sound.set_volume(VOLUME)
 
 def pause_menu():
-    global controls
-    
+    global controls, VOLUME, all_sounds
+
     running = True
     selected_option = 0  # Track the currently selected option (0 for resume)
-    
+
+    # Load sounds
+    hover_sound_pause = pygame.mixer.Sound(os.path.join('assets', 'hover2.wav'))
+    select_sound_pause = pygame.mixer.Sound(os.path.join('assets', 'select.wav'))
+
+    all_sounds.extend([hover_sound_pause, select_sound_pause])
+    for sound in [hover_sound_pause, select_sound_pause]:
+        sound.set_volume(VOLUME)
+
+    previous_selected_option = None  # To track the previously selected option
+
     while running:
         screen.fill((0, 0, 0, 180))  # Semi-transparent black overlay
-        
+
         draw_text_options("Paused", 60, WIDTH // 2, HEIGHT // 4, text_color=(90, 216, 168), outline_color=(0, 0, 0))
-        
+
         options = ["Resume", "Options", "Main Menu"]
         for i, option in enumerate(options):
             if selected_option == i:
                 draw_text_options(option, 36, WIDTH // 2, HEIGHT // 2 + i * 50, text_color=(90, 216, 168), outline_color=(0, 0, 0))
             else:
                 draw_text_options(option, 36, WIDTH // 2, HEIGHT // 2 + i * 50, text_color=(200, 200, 200), outline_color=(0, 0, 0))
-        
+
         pygame.display.flip()
 
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    back_sound.play()  # Play back sound
+                    select_sound_pause.play()
                     return "resume"
                 elif event.key == pygame.K_RETURN:
+                    select_sound_pause.play()
                     if selected_option == 0:
                         return "resume"
                     elif selected_option == 1:
@@ -515,18 +536,26 @@ def pause_menu():
                     selected_option = (selected_option - 1) % len(options)
                 elif event.key == pygame.K_DOWN:
                     selected_option = (selected_option + 1) % len(options)
-            
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 for i, option in enumerate(options):
                     if HEIGHT // 2 + i * 50 - 18 < mouse_y < HEIGHT // 2 + i * 50 + 18:
                         selected_option = i
-        
+                        select_sound_pause.play()
+
             elif event.type == pygame.QUIT:
                 pygame.quit()
                 return "quit"
-    
-    return "resume"  # Default return to resume if quit is triggered unexpectedly
+
+        # Play hover sound when the selection changes
+        if previous_selected_option is not None and previous_selected_option != selected_option:
+            hover_sound_pause.play()
+
+        previous_selected_option = selected_option
+
+    return "resume"
+
 
 
 def main():
