@@ -9,8 +9,8 @@ pygame.init()
 # Fixed screen dimensions
 WIDTH, HEIGHT = 1000, 800
 
-CELL_SIZE = 32  
-PLAYER_SIZE = 30
+CELL_SIZE = 64 
+PLAYER_SIZE = 60
 FPS = 60
 VISIBILITY_RADIUS = 200
 FADE_RADIUS = 50
@@ -78,25 +78,141 @@ class Player:
         self.x = x
         self.y = y
         self.speed = 3
+        self.animation_frame = 0
+        self.animation_speed = 0.1
+        self.direction = 'down'
+        
+        # Collision box dimensions
+        self.collision_width = PLAYER_SIZE // 2  # Adjustable width
+        self.collision_height = PLAYER_SIZE - 15  # Full height
+        
+        # Collision box position offsets
+        self.collision_offset_x = (PLAYER_SIZE - self.collision_width) // 2
+        self.collision_offset_y = 0
+        
+        self.collision_border = pygame.Rect(
+            self.x + self.collision_offset_x,
+            self.y + self.collision_offset_y,
+            self.collision_width,
+            self.collision_height
+        )
+        self.collision_border_color = (255, 0, 0)  # Red border
+        self.collision_border_width = 2  # Border width
+        self.load_sprites()
+
+    def load_sprites(self):
+        try:
+            self.sprites = {
+                'down': [
+                    pygame.image.load(os.path.join('assets', 'player', 'player_down_1.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_down_2.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_down_3.png')).convert_alpha()
+                ],
+                'up': [
+                    pygame.image.load(os.path.join('assets', 'player', 'player_up_1.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_up_2.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_up_3.png')).convert_alpha()
+                ],
+                'left': [
+                    pygame.image.load(os.path.join('assets', 'player', 'player_left_1.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_left_2.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_left_3.png')).convert_alpha()
+                ],
+                'right': [
+                    pygame.image.load(os.path.join('assets', 'player', 'player_right_1.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_right_2.png')).convert_alpha(),
+                    pygame.image.load(os.path.join('assets', 'player', 'player_right_3.png')).convert_alpha()
+                ]
+            }
+            # Resize sprites if necessary
+            for key in self.sprites:
+                self.sprites[key] = [pygame.transform.scale(img, (PLAYER_SIZE, PLAYER_SIZE)) for img in self.sprites[key]]
+        except Exception as e:
+            print(f"Error loading sprites: {e}")
+            raise
 
     def move(self, keys, maze):
-        dx = (keys[controls['right']] - keys[controls['left']])
-        dy = (keys[controls['down']] - keys[controls['up']])
-        
-        new_x = self.x + dx * self.speed
-        new_y = self.y + dy * self.speed
+        dx = (keys[controls['right']] - keys[controls['left']]) * self.speed
+        dy = (keys[controls['down']] - keys[controls['up']]) * self.speed
+   
+        new_x = self.x + dx
+        new_y = self.y + dy
+
+        # Update collision border position
+        new_collision_border = pygame.Rect(
+            new_x + self.collision_offset_x,
+            new_y + self.collision_offset_y,
+            self.collision_width,
+            self.collision_height
+        )
 
         # Check horizontal movement
-        if not any(maze.is_wall(new_x + x, self.y) or maze.is_wall(new_x + x, self.y + PLAYER_SIZE - 1) for x in [0, PLAYER_SIZE - 1]):
+        if not any(maze.is_wall(new_collision_border.left, y) or 
+                maze.is_wall(new_collision_border.right - 1, y) 
+                for y in range(new_collision_border.top, new_collision_border.bottom, 5)):
             self.x = new_x
+            self.collision_border.x = new_collision_border.x
 
         # Check vertical movement
-        if not any(maze.is_wall(self.x, new_y + y) or maze.is_wall(self.x + PLAYER_SIZE - 1, new_y + y) for y in [0, PLAYER_SIZE - 1]):
+        if not any(maze.is_wall(x, new_collision_border.top) or 
+                maze.is_wall(x, new_collision_border.bottom - 1) 
+                for x in range(new_collision_border.left, new_collision_border.right, 5)):
             self.y = new_y
+            self.collision_border.y = new_collision_border.y
+
+        # Update animation and direction
+        if dx > 0:
+            self.direction = 'right'
+        elif dx < 0:
+            self.direction = 'left'
+        elif dy > 0:
+            self.direction = 'down'
+        elif dy < 0:
+            self.direction = 'up'
+
+        if dx != 0 or dy != 0:
+            self.animation_frame += self.animation_speed
+            if self.animation_frame >= len(self.sprites[self.direction]):
+                self.animation_frame = 0
+        else:
+            self.animation_frame = 0
 
     def draw(self, camera_x, camera_y):
-        pygame.draw.rect(screen, (255, 50, 0), (self.x - camera_x, self.y - camera_y, PLAYER_SIZE, PLAYER_SIZE))
+        try:
+            current_sprite = self.sprites[self.direction][int(self.animation_frame)]
 
+            # Add a manual offset here
+            sprite_offset_x = -15  # Adjust this value to move the sprite left or right
+            sprite_offset_y = -15    # You can also adjust this if you want to move it up or down
+
+            sprite_x = self.x - camera_x + sprite_offset_x
+            sprite_y = self.y - camera_y + sprite_offset_y
+
+            # Draw the sprite
+            screen.blit(current_sprite, (sprite_x, sprite_y))
+
+            # Draw the collision border
+            # pygame.draw.rect(screen, self.collision_border_color, 
+            #                 (self.collision_border.x - camera_x, 
+            #                 self.collision_border.y - camera_y, 
+            #                 self.collision_border.width, 
+            #                 self.collision_border.height), 
+            #                 self.collision_border_width)
+
+        except Exception as e:
+            print(f"Error drawing player: {e}")
+            raise
+
+def resize_collision_box(self, new_width):
+    self.collision_width = new_width
+    self.collision_offset_x = (PLAYER_SIZE - self.collision_width) // 2
+    self.collision_border = pygame.Rect(
+        self.x + self.collision_offset_x,
+        self.y + self.collision_offset_y,
+        self.collision_width,
+        self.collision_height
+    )
+    
 class Maze:
     def __init__(self, width, height):
         self.width = width
